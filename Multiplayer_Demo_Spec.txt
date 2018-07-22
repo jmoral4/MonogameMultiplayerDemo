@@ -1,0 +1,48 @@
+Plan for Networking Demo:
+
+
+    Create Server
+    Create Client which connects to server
+    Create Small script which launches multiple clients (4)
+
+    Clients get assigned a userid / player number in the order that they connect 
+
+    If time, we do a small lobby which launches when all players agree
+
+    Server collects input and sends out snapshots to all clients of positions and actions taken 
+
+    Client and Server use NetworkLib which allows us to swap out any of the 2-3 network libraries that we're testing 
+
+    If time permitting, bullet hell Demo
+        enemies come on screen spamming bullets in random patterns.
+        Each player has 1 life or can shoot the enemies
+        Last man standing wins. 
+        Players have X number of bullets and can opt to kill each other or kill the enemies. 
+
+
+    Server Startup on Port X
+
+    Client. connect to server and register self. 
+    Client sends 'ready to play'
+
+    When server receives all ready to play, sends message to all players starting countdown 
+    Server starts countdown internally.
+    Clients all start countdown. 
+
+    Server sends initial snapshot to all players. 
+
+    Clients recv initial snapshot which has their position and position of all other players. 
+
+    Clients begin moving/etc.
+        Clients send updates to the server.
+
+    Server processes updates and sends out snapshots to all players synchronizing. 
+
+    Server tracks player stats (bullets, is player hit, position of enemy projectiles)
+
+    Server sends Death Notice in snapshot for any players which died 
+
+    Server 
+
+
+    
