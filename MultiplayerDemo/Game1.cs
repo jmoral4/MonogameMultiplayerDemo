@@ -5,87 +5,12 @@ using System.Threading;
 using LiteNetLib;
 using LiteNetLib.Utils;
 using System;
+using System.Collections.Generic;
 using System.Collections.Concurrent;
+using MultiplayerDemo.Shared;
 
 namespace MultiplayerDemo
 {
-    public class LiteNetNetworkClient
-    {
-        NetManager _client;
-        EventBasedNetListener _listener;
-        bool _isConnected;
-        NetPeer _server;
-        double _lastUpdate;
-        const int RETRY_MILLISECONDS = 5000;
-        //OOPS
-        Action<string> _loggingFunc;
-        //Func<string> _loggingFunc;
-
-
-        public void Start()
-        {
-            _lastUpdate = 0;
-            EventBasedNetListener _listener = new EventBasedNetListener();
-            _listener.NetworkReceiveEvent += (fromPeer, dataReader, deliveryMethod) =>
-            {
-                string msg = dataReader.GetString(100);
-                Console.WriteLine("We got: {0}", msg);
-                _loggingFunc(msg);
-            };
-
-            _client = new NetManager(_listener);
-            _client.Start();
-            TryConnect();
-        }
-
-        public void AddLoggingFunc(Action<string> func)
-        {
-            _loggingFunc = func;
-        }
-
-        public void TryConnect()
-        {
-           _server =  _client.Connect("localhost" /* host ip or name */, 9050 /* port */, "SomeConnectionKey" /* text key or NetDataWriter */);
-            if (_server != null)
-            {
-                _isConnected = true;
-                Console.WriteLine("CONNECTED TO SERVER!");
-            }
-        }
-
-        public void Update(GameTime gameTime, Keys[] keysPressed)
-        {
-            
-            if (_isConnected)
-            {
-
-                // we'll send keypress events to the server (raw, for testing)
-                _client.PollEvents();
-
-                NetDataWriter writer = new NetDataWriter();
-                foreach (var key in keysPressed)
-                {
-                    writer.Put((int)key);
-                }
-
-                _server.Send(writer, DeliveryMethod.ReliableOrdered);
-            }
-            else {
-                if ((gameTime.TotalGameTime.TotalMilliseconds - _lastUpdate) < RETRY_MILLISECONDS)
-                {
-                    TryConnect();
-                    _lastUpdate = gameTime.TotalGameTime.TotalMilliseconds;
-                }
-            }
-        }
-
-        public void Stop()
-        {
-            _server.Disconnect();
-            _client.Stop();
-            _isConnected = false;
-        }
-    }
 
     /// <summary>
     /// This is the main type for your game.
@@ -99,7 +24,13 @@ namespace MultiplayerDemo
         Vector2 fontLocation;
         ConcurrentQueue<string> _messageQueue;
         string _lastMessage;
-        double messageLifetimeMilliseconds = 5000d;
+
+        PlayerData[] _otherPlayers;
+        PlayerData _self;
+        Texture2D _tile;
+
+        
+        
 
         public Game1()
         {
@@ -107,7 +38,23 @@ namespace MultiplayerDemo
             Content.RootDirectory = "Content";
 
             _messageQueue = new ConcurrentQueue<string>();
+            //int our list of other players
+            _otherPlayers = new PlayerData[4];
+            for (int i =0; i < _otherPlayers.Length; i++)
+            {
+                //init self
+                _otherPlayers[i] = new PlayerData(new Point(32, 64));
+                _otherPlayers[i].TextureName = "robit";
+                _otherPlayers[i].Location = new Point(0, 0);
+                _otherPlayers[i].BoundingBox = new Rectangle(_otherPlayers[i].Location.X, _otherPlayers[i].Location.Y, 32, 64);
+                _otherPlayers[i].IsPresent = false;
+                _otherPlayers[i].PlayerId = i + 1;
+            }
+
         }
+
+        public PlayerData GetPlayerData() => _self;
+        public PlayerData[] GetPlayers() => _otherPlayers;
 
         public void AddToMessageQueue(string message)
         {
@@ -143,7 +90,16 @@ namespace MultiplayerDemo
             // TODO: Add your initialization logic here
             netClient = new LiteNetNetworkClient();
             netClient.AddLoggingFunc(AddToMessageQueue);
+            netClient.RegisterPlayerHandler(GetPlayerData);
+            netClient.RegisterAllPlayersHandler(GetPlayers);
             netClient.Start();
+            
+            //init self
+            _self = new PlayerData(new Point(32,64));
+            _self.TextureName = "robit";
+            _self.Location = new Point(20, 20);
+            _self.BoundingBox = new Rectangle(_self.Location.X, _self.Location.Y, 32, 64);
+            //_self.MovementSpeed = 5;
             base.Initialize();
         }
 
@@ -156,6 +112,12 @@ namespace MultiplayerDemo
             // Create a new SpriteBatch, which can be used to draw textures.
             spriteBatch = new SpriteBatch(GraphicsDevice);
             font = Content.Load<SpriteFont>("gameFont");
+
+            _tile = Content.Load<Texture2D>("sandtile1");
+            //content manager internally caches so we're preloading to ask for them later
+            Content.Load<Texture2D>("robit");
+
+
             // TODO: use this.Content to load your game content here
         }
 
@@ -178,12 +140,65 @@ namespace MultiplayerDemo
             if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
                 Exit();
 
+            //simple movement
+
+            //move down
+            if (Keyboard.GetState().IsKeyDown(Keys.W))
+            {
+                _self.Location.Y -= _self.MovementSpeed;
+                SendClientUpdate(PlayerActions.PRESS_UP);
+            }
+
+            //move down
+            if (Keyboard.GetState().IsKeyDown(Keys.S))
+            {
+                _self.Location.Y += _self.MovementSpeed;
+                SendClientUpdate(PlayerActions.PRESS_DOWN);
+            }
+            if (Keyboard.GetState().IsKeyDown(Keys.A))
+            {
+                _self.Location.X -= _self.MovementSpeed;
+                SendClientUpdate(PlayerActions.PRESS_LEFT);
+            }
+
+            //move down
+            if (Keyboard.GetState().IsKeyDown(Keys.D))
+            {
+                _self.Location.X += _self.MovementSpeed;
+                SendClientUpdate(PlayerActions.PRESS_RIGHT);
+            }
+
+            _self.BoundingBox = new Rectangle(_self.Location, _self.Size);
+
+            //update all active player bounding boxes
+            foreach (var player in _otherPlayers)
+            {
+                if (player.IsPresent)
+                {
+                    player.BoundingBox = new Rectangle(player.Location, player.Size);
+                }
+            }
+
             netClient.Update(gameTime, Keyboard.GetState().GetPressedKeys());
 
            
             // TODO: Add your update logic here
 
             base.Update(gameTime);
+        }
+
+        
+
+        private void SendClientUpdate(PlayerActions playerAction)
+        {
+            //we send actions rather than direct keys because the player could have remapped the keys to whatever they find useful
+            // server only cares about what action the client took.
+            netClient.SendClientActions(playerAction);
+        }
+
+        protected Texture2D GetTexture(string name)
+        {
+            return Content.Load<Texture2D>(name);
         }
 
         /// <summary>
@@ -198,6 +213,19 @@ namespace MultiplayerDemo
             spriteBatch.Begin();
 
             spriteBatch.DrawString(font, $"Server Sent:{GetLastMessage()}", fontLocation, Color.Black);
+
+            //draw self 
+            spriteBatch.Draw(GetTexture(_self.TextureName), _self.BoundingBox, Color.White);
+
+            //draw any other known players
+            foreach (var player in _otherPlayers)
+            {
+                if (player.IsPresent && player.PlayerId != _self.PlayerId)
+                {
+                    spriteBatch.Draw(GetTexture(player.TextureName), player.BoundingBox, Color.Green);
+                }
+            }
+
 
             spriteBatch.End();
 
