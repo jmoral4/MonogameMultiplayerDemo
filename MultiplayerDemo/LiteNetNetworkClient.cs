@@ -42,9 +42,6 @@ namespace MultiplayerDemo
 
             _listener.NetworkReceiveEvent += (fromPeer, dataReader, deliveryMethod) =>
             {
-                // the data reader is a ONE WAY reader similar to a SQL data reader. If you READ from it, you move the pointer forward. 
-                // never do the line below or you'll have painful debugging sessions...
-                 // ... don't do this unless we _only_ want to display contents -  Console.WriteLine("Server Sent: {0}", dataReader.GetString(100 /* max length of string */));     
                 _packetProcessor.ReadAllPackets(dataReader, fromPeer);
             };
             _client = new NetManager(_listener);            

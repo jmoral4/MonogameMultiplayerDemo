@@ -89,6 +89,7 @@ namespace MultiplayerServer
         
 
         public void Start() {
+            Console.WriteLine("GAME SERVER STARTED");
             EventBasedNetListener listener = new EventBasedNetListener();
             NetManager server = new NetManager(listener);
             server.Start(9050 /* port */);
@@ -145,14 +146,10 @@ namespace MultiplayerServer
                     //player must have disconnected during a game, let's try to reconnect to their game if it's still playing
                     //TODO: look up the GameSessionID, then start sending this player's packets to all players in the session
                 }
+                                  
 
-
-               
-                    Console.WriteLine("We got connection: {0}", peer.EndPoint); // Show peer ip
-                                                                                //NetDataWriter writer = new NetDataWriter();                 // Create writer class
-                                                                                //writer.Put($"+H:{pd.ClientID}");                                // Put some string
-                                                                                //peer.Send(writer, DeliveryMethod.ReliableOrdered);             // Send with reliability
                     var pdat = _knownPlayers[key];
+                Console.WriteLine("PLAYER JOINED: {0} as PLAYER {1} with ID {2}", peer.EndPoint, pdat.PlayerNumber, pdat.ClientID);
                 //send our info in a welcome packet
                 WelcomePacket wp = new WelcomePacket
                 {
@@ -260,18 +257,6 @@ namespace MultiplayerServer
             var key = peer.EndPoint.ToString();
             if (_knownPlayers.ContainsKey(key))
             {
-                //if (reader.AvailableBytes > 0)
-                //{
-                //    Console.WriteLine($"{DateTime.Now.ToLongTimeString()} Recv: {reader.AvailableBytes} from client {peer.ConnectId} method {deliveryMethod}");
-                //    //lets reply back with whatever
-
-
-                   
-
-                //    //NetDataWriter writer = new NetDataWriter();
-                //    //writer.Put("Got it." + r.Next(0, 1000));
-                //    //peer.Send(writer, DeliveryMethod.ReliableOrdered);
-                //}
             }
             else
             {
